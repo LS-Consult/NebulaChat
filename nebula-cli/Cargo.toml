@@ -12,3 +12,5 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+nebula-common = { path = "../nebula-common" }
+

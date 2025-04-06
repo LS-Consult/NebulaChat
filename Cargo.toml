@@ -1,0 +1,21 @@
+[workspace]
+resolver = "3"
+members = ["nebula-app", "nebula-cli", "nebula-common", "nebula-relay"]
+exclude = []
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+description = "Peer-to-peer secure chat"
+readme = "README.md"
+repository = "https://github.com/LS-Consult/NebulaChat"
+homepage = "https://github.com/LS-Consult/NebulaChat"
+documentation = "https://github.com/LS-Consult/NebulaChat"
+authors = ["Lucas Morais Gurgel <lucas.morais@lsconsult.tech>", "Chaybe Lucas <chaybe_lucas@hotmail.com>"]
+publish = true
+license = "MIT"
+
+[workspace.dependencies]
+tokio = { version = "1.44.2", features = ["full"] }
+
+egui = { version = "0.31.1", features = [] }

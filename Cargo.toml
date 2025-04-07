@@ -19,3 +19,4 @@ license = "MIT"
 tokio = { version = "1.44.2", features = ["full"] }
 
 egui = { version = "0.31.1", features = [] }
+eframe = { version="0.31.1" }

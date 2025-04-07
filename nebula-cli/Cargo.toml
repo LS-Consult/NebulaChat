@@ -14,3 +14,11 @@ license.workspace = true
 [dependencies]
 nebula-common = { path = "../nebula-common" }
 
+tokio = { workspace = true }
+
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+clap = { workspace = true }
+
+thiserror = { workspace = true }
+color-eyre = { workspace = true }

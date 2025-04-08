@@ -11,7 +11,7 @@ pub enum NebulaError {
 pub enum SystemError {
     #[error(transparent)]
     StdIo(#[from] std::io::Error),
-    
+
     #[error(transparent)]
     Arti(#[from] arti_client::Error),
 }
@@ -26,9 +26,9 @@ pub enum ConfigError {
 
     #[error(transparent)]
     Packing(#[from] toml::ser::Error),
-    
+
     #[error("Arti config error")]
-    Arti
+    Arti,
 }
 
 pub type Result<T> = std::result::Result<T, NebulaError>;

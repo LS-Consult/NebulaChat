@@ -17,7 +17,9 @@ toml = { workspace = true }
 
 arti-client = { workspace = true }
 tor-rtcompat = { workspace = true }
+tor-hsservice = { workspace = true }
 
 dirs = { workspace = true }
 
 thiserror = { workspace = true }
+futures = { workspace = true }

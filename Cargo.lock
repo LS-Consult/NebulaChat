@@ -2738,9 +2738,11 @@ version = "0.1.0"
 dependencies = [
  "arti-client",
  "dirs 6.0.0",
+ "futures",
  "serde",
  "thiserror 2.0.12",
  "toml",
+ "tor-hsservice",
  "tor-rtcompat",
 ]
 

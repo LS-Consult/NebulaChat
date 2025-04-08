@@ -14,8 +14,8 @@ use crate::error::{ConfigError, Result, SystemError};
 ///   stored as a `Vec<u8>`, where it contains both the private and public
 ///   keys.
 ///
-/// This structure is both serializable and deserializable using 
-/// the `serde` framework, allowing seamless integration with 
+/// This structure is both serializable and deserializable using
+/// the `serde` framework, allowing seamless integration with
 /// configuration formats like TOML.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ClientConfig {
@@ -74,7 +74,6 @@ impl ClientConfig {
             Err(e) => Err(SystemError::StdIo(e).into()),
         }
     }
-    
 
     /// Saves the client configuration to the default path.
     ///
@@ -109,16 +108,16 @@ impl ClientConfig {
         let mut config_dir = dirs::config_dir()
             .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))
             .map_err(SystemError::StdIo)?;
-        
+
         config_dir.push("nebula");
         config_dir.push("config.toml");
-        
+
         let config_content_result = toml::to_string_pretty(self);
         match config_content_result {
             Ok(config_content) => match std::fs::write(config_dir, config_content) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(SystemError::StdIo(e).into()),
-            }
+            },
             Err(e) => Err(ConfigError::Packing(e).into()),
         }
     }

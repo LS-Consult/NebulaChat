@@ -1,7 +1,7 @@
 use crate::error::{ConfigError, Result, SystemError};
 
-use arti_client::{TorClient, TorClientConfig};
 use arti_client::config::onion_service::{OnionServiceConfig, OnionServiceConfigBuilder};
+use arti_client::{TorClient, TorClientConfig};
 use tor_rtcompat::PreferredRuntime;
 
 pub struct ArtiConnector {
@@ -28,7 +28,7 @@ impl ArtiConnector {
                 ConfigError::Arti.into()
             })
     }
-    
+
     pub fn get_tor(&self) -> &TorClient<PreferredRuntime> {
         &self.tor
     }

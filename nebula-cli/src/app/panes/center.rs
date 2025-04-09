@@ -16,11 +16,17 @@ pub struct CenterPaneState {
 
 pub fn render(frame: &mut Frame, area: Rect, state: &mut CenterPaneState) {
     let [history_area, input_area] = Layout::default()
+        .direction(ratatui::layout::Direction::Vertical)
         .constraints(vec![Constraint::Fill(1), Constraint::Max(3)])
         .areas(area);
 
     // History Area
-    render_message_history(frame, history_area, &state.messages, state.node_address.clone());
+    render_message_history(
+        frame,
+        history_area,
+        &state.messages,
+        state.node_address.clone(),
+    );
 
     // Input Area
     let input_widget = InputWidget {

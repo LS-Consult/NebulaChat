@@ -13,12 +13,13 @@ use ratatui::widgets::{Block, Paragraph};
 use ratatui::{DefaultTerminal, Frame};
 use std::cmp::PartialEq;
 use std::sync::Arc;
-use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::oneshot::Receiver;
+use tokio::sync::oneshot::error::TryRecvError;
 use tui_input::{Input, InputRequest};
 
 pub struct App {
     should_exit: bool,
+
     input_mode: InputMode,
     ct_event_stream: EventStream,
     center_pane_state: CenterPaneState,
@@ -102,17 +103,6 @@ impl App {
 
             frame.render_widget(failure_message, frame.area());
         } else if self.is_arti_started {
-            let root_layout = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints(vec![
-                    Constraint::Percentage(10),
-                    Constraint::Percentage(75),
-                    Constraint::Percentage(15),
-                ]);
-
-            let [_left_area, center_area, _right_area] = root_layout.areas(frame.area());
-
-            panes::center::render(frame, center_area, &mut self.center_pane_state);
             let root_layout = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints(vec![

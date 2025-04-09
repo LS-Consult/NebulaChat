@@ -24,20 +24,29 @@ pub async fn main() -> color_eyre::Result<()> {
 
     // If no Clap command is found, bootstrap Arti and initialize Ratatui
     let (arti_trigger_tx, arti_trigger_rx) = tokio::sync::oneshot::channel::<ArtiTriggerEvent>();
+    let (exit_trigger_tx, exit_trigger_rx) = tokio::sync::oneshot::channel::<()>();
 
     let tor_service_handle = tokio::spawn(async move {
         let arti_connector = ArtiConnector::try_new().await?;
-        arti_connector
-            .start_hidden_service(arti_trigger_tx)
-            .await
-            .map_err(|e| color_eyre::eyre::eyre!(e))
+        tokio::select! {
+            result = arti_connector.start_hidden_service(arti_trigger_tx) => {
+                result.map_err(|e| color_eyre::eyre::eyre!(e))
+            }
+            _ = exit_trigger_rx => {
+                Ok(())
+            }
+        }
     });
 
     let application_handle = tokio::spawn(async move {
         let mut ratatui_terminal = ratatui::init();
         let mut application = app::App::new(arti_trigger_rx);
 
-        application.run(&mut ratatui_terminal).await
+        let result = application.run(&mut ratatui_terminal).await;
+
+        exit_trigger_tx.send(()).unwrap();
+
+        result
     });
 
     let _ = try_join!(tor_service_handle, application_handle);

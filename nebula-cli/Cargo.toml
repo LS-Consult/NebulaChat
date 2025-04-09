@@ -18,6 +18,7 @@ tokio = { workspace = true }
 
 ratatui = { workspace = true }
 crossterm = { workspace = true }
+tui-input = { workspace = true }
 clap = { workspace = true }
 
 thiserror = { workspace = true }

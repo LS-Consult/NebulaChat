@@ -3,12 +3,14 @@ use crate::error::{ConfigError, Result, SystemError};
 /// Represents the configuration for a client.
 ///
 /// This structure encapsulates the client's essential configuration data,
-/// including the username and the Ed25519 keypair.
+/// including the username, relay URL, and the Ed25519 keypair.
 ///
 /// # Fields
 ///
 /// - `username`
 ///   The unique username associated with the client.
+/// - `relay_url`
+///   The URL of the relay server the client will connect to.
 /// - `keypair`
 ///   The Ed25519 keypair used for cryptographic operations. The keypair is
 ///   stored as a `Vec<u8>`, where it contains both the private and public
@@ -20,6 +22,7 @@ use crate::error::{ConfigError, Result, SystemError};
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ClientConfig {
     pub username: String,
+    pub relay_url: String,
     pub keypair: Vec<u8>,
 }
 

@@ -1,5 +1,9 @@
 mod app;
+mod buffer;
+mod cli;
 
+use crate::cli::Cli;
+use clap::Parser;
 use nebula_common::net::arti::ArtiConnector;
 use nebula_common::{futures, tor_hsservice};
 use std::sync::Arc;
@@ -8,22 +12,27 @@ use std::sync::Arc;
 pub async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
 
-    // Bootstrap the Tor Router
-    let (arti_connector, onion_service, request_stream) = bootstrap_tor().await?;
+    // First, parse any Clap command
+    let cli = Cli::try_parse();
+    if let Ok(cli) = cli {
+        match cli.command {
+            cli::Command::Initialize { relay_url } => cli::command::initialize(relay_url)?,
+            cli::Command::Auth => cli::command::auth()?,
+        }
 
-    //Initialize Ratatui
+        return Ok(());
+    }
+
+    // If no Clap command is found, bootstrap Tor and initialize Ratatui
+    let (_arti_connector, _onion_service, _request_stream) = bootstrap_tor().await?;
+
     let mut ratatui_terminal = ratatui::init();
-    let mut application = app::App::new(
-        false,
-        Box::pin(request_stream),
-        onion_service,
-        arti_connector,
-    );
+    let mut application = app::App::new();
 
-    let application_result = application.run(&mut ratatui_terminal);
+    let application_result = application.run(&mut ratatui_terminal).await;
 
     ratatui::restore();
-    application_result.await
+    application_result
 }
 
 async fn bootstrap_tor() -> color_eyre::Result<(

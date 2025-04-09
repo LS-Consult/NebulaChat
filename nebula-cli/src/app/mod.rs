@@ -1,47 +1,53 @@
+mod panes;
 mod widgets;
 
-use crate::app::widgets::chat_list_sidebar::ChatListSidebarState;
-use nebula_common::net::arti::ArtiConnector;
-use nebula_common::{futures::Stream, tor_hsservice};
+use crate::app::panes::center::CenterPaneState;
+use crate::app::widgets::input::InputWidgetState;
+use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyModifiers};
+use nebula_common::futures::{FutureExt, StreamExt};
 use ratatui::prelude::*;
-use ratatui::widgets::ListState;
 use ratatui::{DefaultTerminal, Frame};
-use std::pin::Pin;
-use std::sync::Arc;
-
-const TICK_RATE: f64 = 30.0;
+use std::cmp::PartialEq;
+use tui_input::{Input, InputRequest};
 
 pub struct App {
-    arti_connector: ArtiConnector,
-    onion_service: Arc<tor_hsservice::RunningOnionService>,
-    onion_service_stream: Pin<Box<dyn Stream<Item = tor_hsservice::RendRequest>>>,
     should_exit: bool,
+    input_mode: InputMode,
+    ct_event_stream: EventStream,
+    center_pane_state: CenterPaneState,
+}
 
-    chat_list_sidebar_state: ChatListSidebarState,
+#[derive(Clone, Copy, PartialEq)]
+pub enum InputMode {
+    Normal,
+    Insert,
+    Command,
 }
 
 impl App {
-    pub fn new(
-        should_exit: bool,
-        onion_service_stream: Pin<Box<dyn Stream<Item = tor_hsservice::RendRequest>>>,
-        onion_service: Arc<tor_hsservice::RunningOnionService>,
-        arti_connector: ArtiConnector,
-    ) -> Self {
-        Self {
-            arti_connector,
-            onion_service,
-            onion_service_stream,
-            should_exit,
-            chat_list_sidebar_state: ChatListSidebarState {
-                is_selected: true,
-                chat_list_state: ListState::default(),
+    pub fn new() -> Self {
+        let input_mode = InputMode::Normal;
+
+        let center_pane_state = CenterPaneState {
+            input_widget_state: InputWidgetState {
+                input: Input::default(),
             },
+            mode: input_mode,
+            messages: vec![],
+        };
+
+        Self {
+            should_exit: false,
+            input_mode,
+            ct_event_stream: EventStream::new(),
+            center_pane_state,
         }
     }
 
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
         while !self.should_exit {
             terminal.draw(|frame| self.draw(frame))?;
+            self.handle_crossterm_events().await?;
         }
 
         Ok(())
@@ -56,18 +62,75 @@ impl App {
                 Constraint::Percentage(15),
             ]);
 
-        let [left_area, center_area, right_area] = root_layout.areas(frame.area());
+        let [_left_area, center_area, _right_area] = root_layout.areas(frame.area());
 
-        let chat_list_sidebar = widgets::chat_list_sidebar::ChatListSidebarWidget;
-        let connected_users_sidebar = widgets::connected_users_sidebar::ConnectedUsersSidebarWidget;
-        let main_chat = widgets::main_chat::MainChatWidget;
+        panes::center::render(frame, center_area, &mut self.center_pane_state);
+    }
 
-        frame.render_stateful_widget(
-            &chat_list_sidebar,
-            left_area,
-            &mut self.chat_list_sidebar_state,
-        );
-        frame.render_widget(&main_chat, center_area);
-        frame.render_widget(&connected_users_sidebar, right_area);
+    async fn handle_crossterm_events(&mut self) -> color_eyre::Result<()> {
+        tokio::select! {
+            event = self.ct_event_stream.next().fuse() => {
+                if let Some(Ok(Event::Key(key))) = event {
+                    if key.is_press() {
+                        self.on_key_event(key).await;
+                    }
+                }
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {},
+        }
+
+        Ok(())
+    }
+
+    async fn on_key_event(&mut self, event: KeyEvent) {
+        match (self.input_mode, event.modifiers, event.code) {
+            (InputMode::Normal, KeyModifiers::CONTROL, KeyCode::Char('q') | KeyCode::Char('Q')) => {
+                self.should_exit = true;
+            }
+            (InputMode::Normal, _, KeyCode::Char('i') | KeyCode::Char('I')) => {
+                self.input_mode = InputMode::Insert;
+                self.center_pane_state.mode = InputMode::Insert;
+            }
+            (InputMode::Normal, _, KeyCode::Char('c')) => {
+                self.input_mode = InputMode::Command;
+            }
+            (InputMode::Insert, _, KeyCode::Esc) => {
+                self.input_mode = InputMode::Normal;
+                self.center_pane_state.mode = InputMode::Normal;
+            }
+            (InputMode::Insert, _, KeyCode::Char(c)) => {
+                let input_request = InputRequest::InsertChar(c);
+                self.center_pane_state
+                    .input_widget_state
+                    .input
+                    .handle(input_request);
+            }
+            (InputMode::Insert, _, KeyCode::Backspace) => {
+                let input_request = InputRequest::DeletePrevChar;
+                self.center_pane_state
+                    .input_widget_state
+                    .input
+                    .handle(input_request);
+            }
+            (InputMode::Insert, _, KeyCode::Enter) => {
+                if self.center_pane_state.input_widget_state.input.value().is_empty() {
+                    return;
+                }
+                
+                self.center_pane_state.messages.push(
+                    self.center_pane_state
+                        .input_widget_state
+                        .input
+                        .value()
+                        .to_string(),
+                );
+
+                self.center_pane_state.input_widget_state.input.reset();
+            }
+            (InputMode::Command, _, KeyCode::Esc) => {
+                self.input_mode = InputMode::Normal;
+            }
+            _ => {}
+        }
     }
 }

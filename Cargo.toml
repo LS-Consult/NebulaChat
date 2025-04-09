@@ -22,6 +22,7 @@ egui = { version = "0.31.1", features = ["serde"] }
 eframe = { version = "0.31.1", features = ["serde", "wgpu"] }
 ratatui = { version = "0.29.0", features = ["all-widgets", "crossterm", "serde"] }
 crossterm = { version = "0.29.0", features = ["event-stream"] }
+tui-input = { version = "0.11.1" }
 clap = { version = "4.5.35", features = ["derive"] }
 
 axum = { version = "0.8.3", features = ["ws"] }

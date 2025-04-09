@@ -1,15 +1,16 @@
 use crate::error::{ConfigError, Result, SystemError};
-use std::net::SocketAddr;
-use std::str::FromStr;
-
 use arti_client::config::onion_service::OnionServiceConfigBuilder;
 use arti_client::{TorClient, TorClientConfig};
+use std::net::SocketAddr;
+use std::str::FromStr;
+use std::sync::Arc;
 use tokio::sync::oneshot::Sender;
 use tor_hsrproxy::config::Encapsulation::Simple;
 use tor_hsrproxy::config::{
     ProxyAction, ProxyConfigBuilder, ProxyPattern, ProxyRule, ProxyRuleListBuilder, TargetAddr,
 };
 use tor_hsrproxy::OnionServiceReverseProxy;
+use tor_hsservice::RunningOnionService;
 use tor_rtcompat::PreferredRuntime;
 
 #[derive(Clone)]
@@ -17,8 +18,8 @@ pub struct ArtiConnector {
     tor: TorClient<PreferredRuntime>,
 }
 
-pub enum TorTriggerEvent {
-    Running,
+pub enum ArtiTriggerEvent {
+    Running(Arc<RunningOnionService>),
     Failed,
 }
 
@@ -35,22 +36,22 @@ impl ArtiConnector {
         Ok(Self { tor: tor_client })
     }
 
-    pub async fn start_hidden_service(&self, tx: Sender<TorTriggerEvent>) -> Result<()> {
+    pub async fn start_hidden_service(&self, tx: Sender<ArtiTriggerEvent>) -> Result<()> {
         let onion_service_config = OnionServiceConfigBuilder::default()
             .nickname("nebula_chat".parse().unwrap())
-            .enable_pow(true)
+            .enable_pow(false)
             .build()
             .map_err(|_| {
                 eprintln!("Failed to build onion service config");
                 ConfigError::Arti
             })?;
 
-        let (_, rend_stream) = self
+        let (hs, rend_stream) = self
             .tor
             .launch_onion_service(onion_service_config)
             .expect("Failed to launch onion service");
 
-        Self::start_reverse_proxy(rend_stream, tx).await
+        Self::start_reverse_proxy(rend_stream, tx, hs).await
     }
 
     async fn start_reverse_proxy(
@@ -59,7 +60,8 @@ impl ArtiConnector {
         + Send
         + Sync
         + 'static,
-        tx: Sender<TorTriggerEvent>,
+        tx: Sender<ArtiTriggerEvent>,
+        hs: Arc<RunningOnionService>,
     ) -> Result<()> {
         let mut proxy_rule_list = ProxyRuleListBuilder::default();
         proxy_rule_list.access().push(ProxyRule::new(
@@ -83,8 +85,9 @@ impl ArtiConnector {
 
         let reverse_proxy = OnionServiceReverseProxy::new(reverse_proxy_config);
 
-        tx.send(TorTriggerEvent::Running).map_err(|_| SystemError::ArtiReverseProxy)?;
-        
+        tx.send(ArtiTriggerEvent::Running(hs))
+            .map_err(|_| SystemError::ArtiReverseProxy)?;
+
         reverse_proxy
             .handle_requests(
                 PreferredRuntime::current().unwrap(),

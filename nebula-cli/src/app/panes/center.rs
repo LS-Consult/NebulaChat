@@ -1,5 +1,6 @@
 use crate::app::widgets::input::{InputWidget, InputWidgetState};
 use crate::app::InputMode;
+use ratatui::layout::Alignment::Center;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Wrap};
@@ -7,6 +8,7 @@ use ratatui::Frame;
 
 #[derive(Clone)]
 pub struct CenterPaneState {
+    pub node_address: Option<String>,
     pub input_widget_state: InputWidgetState,
     pub mode: InputMode,
     pub messages: Vec<String>,
@@ -18,7 +20,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &mut CenterPaneState) {
         .areas(area);
 
     // History Area
-    render_message_history(frame, history_area, &state.messages);
+    render_message_history(frame, history_area, &state.messages, state.node_address.clone());
 
     // Input Area
     let input_widget = InputWidget {
@@ -38,11 +40,18 @@ pub fn render(frame: &mut Frame, area: Rect, state: &mut CenterPaneState) {
     frame.render_stateful_widget(&input_widget, input_area, &mut state.input_widget_state);
 }
 
-fn render_message_history(frame: &mut Frame, area: Rect, messages: &[String]) {
+fn render_message_history(
+    frame: &mut Frame,
+    area: Rect,
+    messages: &[String],
+    node_address: Option<String>,
+) {
     // Create a block for the history area
     let history_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded);
+        .border_type(BorderType::Rounded)
+        .title_bottom(node_address.unwrap_or(String::from("")))
+        .title_alignment(Center);
 
     // Create an area inside the block to render messages
     let inner_area = history_block.inner(area);

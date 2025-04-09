@@ -5,7 +5,8 @@ use crate::app::panes::center::CenterPaneState;
 use crate::app::widgets::input::InputWidgetState;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyModifiers};
 use nebula_common::futures::{FutureExt, StreamExt};
-use nebula_common::net::arti::{ArtiConnector, TorTriggerEvent};
+use nebula_common::net::arti::ArtiTriggerEvent;
+use nebula_common::tor_hsservice::RunningOnionService;
 use ratatui::prelude::*;
 use ratatui::widgets::BorderType::Rounded;
 use ratatui::widgets::{Block, Paragraph};
@@ -22,10 +23,10 @@ pub struct App {
     ct_event_stream: EventStream,
     center_pane_state: CenterPaneState,
 
-    arti_connector: Arc<ArtiConnector>,
-    arti_status_rx: Receiver<TorTriggerEvent>,
+    arti_status_rx: Receiver<ArtiTriggerEvent>,
     is_arti_started: bool,
     is_arti_failed: bool,
+    arti_running_hs: Option<Arc<RunningOnionService>>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -36,10 +37,11 @@ pub enum InputMode {
 }
 
 impl App {
-    pub fn new(arti_connector: Arc<ArtiConnector>, arti_status_rx: Receiver<TorTriggerEvent>) -> Self {
+    pub fn new(arti_status_rx: Receiver<ArtiTriggerEvent>) -> Self {
         let input_mode = InputMode::Normal;
 
         let center_pane_state = CenterPaneState {
+            node_address: None,
             input_widget_state: InputWidgetState {
                 input: Input::default(),
             },
@@ -52,10 +54,10 @@ impl App {
             input_mode,
             ct_event_stream: EventStream::new(),
             center_pane_state,
-            arti_connector,
             arti_status_rx,
             is_arti_started: false,
             is_arti_failed: false,
+            arti_running_hs: None,
         }
     }
 
@@ -72,10 +74,13 @@ impl App {
         if !self.is_arti_started && !self.is_arti_failed {
             match self.arti_status_rx.try_recv() {
                 Ok(event) => match event {
-                    TorTriggerEvent::Running => {
+                    ArtiTriggerEvent::Running(hs) => {
                         self.is_arti_started = true;
+                        self.center_pane_state.node_address =
+                            hs.onion_address().map(|a| a.to_string());
+                        self.arti_running_hs = Some(hs);
                     }
-                    TorTriggerEvent::Failed => {
+                    ArtiTriggerEvent::Failed => {
                         self.is_arti_failed = true;
                     }
                 },

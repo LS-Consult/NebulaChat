@@ -4,9 +4,7 @@ mod cli;
 
 use crate::cli::Cli;
 use clap::Parser;
-use nebula_common::net::arti::{ArtiConnector, TorTriggerEvent};
-use std::sync::Arc;
-use tokio::sync::oneshot::Sender;
+use nebula_common::net::arti::{ArtiConnector, ArtiTriggerEvent};
 use tokio::try_join;
 
 #[tokio::main]
@@ -24,14 +22,20 @@ pub async fn main() -> color_eyre::Result<()> {
         return Ok(());
     }
 
-    // If no Clap command is found, bootstrap Tor and initialize Ratatui
-    let arti_connector = Arc::new(ArtiConnector::try_new().await?);
-    let (tor_trigger_tx, tor_trigger_rx) = tokio::sync::oneshot::channel::<TorTriggerEvent>();
+    // If no Clap command is found, bootstrap Arti and initialize Ratatui
+    let (arti_trigger_tx, arti_trigger_rx) = tokio::sync::oneshot::channel::<ArtiTriggerEvent>();
 
-    let tor_service_handle = tokio::spawn(bootstrap_tor(arti_connector.clone(), tor_trigger_tx));
+    let tor_service_handle = tokio::spawn(async move {
+        let arti_connector = ArtiConnector::try_new().await?;
+        arti_connector
+            .start_hidden_service(arti_trigger_tx)
+            .await
+            .map_err(|e| color_eyre::eyre::eyre!(e))
+    });
+
     let application_handle = tokio::spawn(async move {
         let mut ratatui_terminal = ratatui::init();
-        let mut application = app::App::new(arti_connector.clone(), tor_trigger_rx);
+        let mut application = app::App::new(arti_trigger_rx);
 
         application.run(&mut ratatui_terminal).await
     });
@@ -39,13 +43,5 @@ pub async fn main() -> color_eyre::Result<()> {
     let _ = try_join!(tor_service_handle, application_handle);
 
     ratatui::restore();
-    Ok(())
-}
-
-async fn bootstrap_tor(
-    arti_connector: Arc<ArtiConnector>,
-    tx: Sender<TorTriggerEvent>,
-) -> color_eyre::Result<()> {
-    arti_connector.start_hidden_service(tx).await?;
     Ok(())
 }

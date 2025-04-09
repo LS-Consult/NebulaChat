@@ -4,9 +4,10 @@ mod cli;
 
 use crate::cli::Cli;
 use clap::Parser;
-use nebula_common::net::arti::ArtiConnector;
-use nebula_common::{futures, tor_hsservice};
+use nebula_common::net::arti::{ArtiConnector, TorTriggerEvent};
 use std::sync::Arc;
+use tokio::sync::oneshot::Sender;
+use tokio::try_join;
 
 #[tokio::main]
 pub async fn main() -> color_eyre::Result<()> {
@@ -24,34 +25,27 @@ pub async fn main() -> color_eyre::Result<()> {
     }
 
     // If no Clap command is found, bootstrap Tor and initialize Ratatui
-    let (_arti_connector, _onion_service, _request_stream) = bootstrap_tor().await?;
+    let arti_connector = Arc::new(ArtiConnector::try_new().await?);
+    let (tor_trigger_tx, tor_trigger_rx) = tokio::sync::oneshot::channel::<TorTriggerEvent>();
 
-    let mut ratatui_terminal = ratatui::init();
-    let mut application = app::App::new();
+    let tor_service_handle = tokio::spawn(bootstrap_tor(arti_connector.clone(), tor_trigger_tx));
+    let application_handle = tokio::spawn(async move {
+        let mut ratatui_terminal = ratatui::init();
+        let mut application = app::App::new(arti_connector.clone(), tor_trigger_rx);
 
-    let application_result = application.run(&mut ratatui_terminal).await;
+        application.run(&mut ratatui_terminal).await
+    });
+
+    let _ = try_join!(tor_service_handle, application_handle);
 
     ratatui::restore();
-    application_result
+    Ok(())
 }
 
-async fn bootstrap_tor() -> color_eyre::Result<(
-    ArtiConnector,
-    Arc<tor_hsservice::RunningOnionService>,
-    impl futures::Stream<Item = tor_hsservice::RendRequest>,
-)> {
-    println!("🌎 Bootstrapping Tor...");
-
-    let arti_connector = ArtiConnector::try_new().await?;
-    let hidden_service_config = arti_connector.setup_hidden_service()?;
-    let (onion_service, request_stream) = arti_connector
-        .get_tor()
-        .launch_onion_service(hidden_service_config)?;
-
-    println!("🛜 Tor bootstrapped!");
-    println!(
-        "🗺️ Your hidden service is available at: {}",
-        onion_service.onion_address().unwrap()
-    );
-    Ok((arti_connector, onion_service, request_stream))
+async fn bootstrap_tor(
+    arti_connector: Arc<ArtiConnector>,
+    tx: Sender<TorTriggerEvent>,
+) -> color_eyre::Result<()> {
+    arti_connector.start_hidden_service(tx).await?;
+    Ok(())
 }

@@ -12,14 +12,24 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+tokio = { workspace = true }
+
 serde = { workspace = true }
 toml = { workspace = true }
+ciborium = { workspace = true }
 
 arti-client = { workspace = true }
 tor-rtcompat = { workspace = true }
 tor-hsservice = { workspace = true }
+tor-hsrproxy = { workspace = true }
+
+ed25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true }
+
+ulid = { workspace = true }
 
 dirs = { workspace = true }
 
 thiserror = { workspace = true }
 futures = { workspace = true }
+async-trait = { workspace = true }

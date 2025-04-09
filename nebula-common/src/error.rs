@@ -5,6 +5,9 @@ pub enum NebulaError {
 
     #[error(transparent)]
     Config(#[from] ConfigError),
+    
+    #[error(transparent)]
+    Bonk(#[from] BonkError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -14,6 +17,9 @@ pub enum SystemError {
 
     #[error(transparent)]
     Arti(#[from] arti_client::Error),
+    
+    #[error("Failed to start reverse proxy")]
+    ArtiReverseProxy
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -29,6 +35,15 @@ pub enum ConfigError {
 
     #[error("Arti config error")]
     Arti,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum BonkError {
+    #[error("Malformed frame")]
+    MalformedFrame,
+    
+    #[error("Failed to write a data stream")]
+    WriterFailure
 }
 
 pub type Result<T> = std::result::Result<T, NebulaError>;

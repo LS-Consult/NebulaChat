@@ -12,3 +12,14 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+nebula-common = { path = "../nebula-common" }
+
+tokio = { workspace = true }
+
+ed25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true }
+
+ulid = { workspace = true }
+
+serde = { workspace = true }
+ciborium = { workspace = true }

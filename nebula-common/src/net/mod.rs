@@ -1,3 +1,3 @@
 pub mod arti;
-mod bonk;
-mod relay;
+pub mod relay;
+mod event;

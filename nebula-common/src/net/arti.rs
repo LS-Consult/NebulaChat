@@ -18,7 +18,7 @@ pub struct ArtiConnector {
     tor: TorClient<PreferredRuntime>,
 }
 
-pub enum ArtiTriggerEvent {
+pub enum ArtiEvent {
     Running(Arc<RunningOnionService>),
     Failed,
 }
@@ -36,7 +36,7 @@ impl ArtiConnector {
         Ok(Self { tor: tor_client })
     }
 
-    pub async fn start_hidden_service(&self, tx: Sender<ArtiTriggerEvent>) -> Result<()> {
+    pub async fn start_hidden_service(&self, tx: Sender<ArtiEvent>) -> Result<()> {
         let onion_service_config = OnionServiceConfigBuilder::default()
             .nickname("nebula_chat".parse().unwrap())
             .enable_pow(false)
@@ -60,7 +60,7 @@ impl ArtiConnector {
         + Send
         + Sync
         + 'static,
-        tx: Sender<ArtiTriggerEvent>,
+        tx: Sender<ArtiEvent>,
         hs: Arc<RunningOnionService>,
     ) -> Result<()> {
         let mut proxy_rule_list = ProxyRuleListBuilder::default();
@@ -85,7 +85,7 @@ impl ArtiConnector {
 
         let reverse_proxy = OnionServiceReverseProxy::new(reverse_proxy_config);
 
-        tx.send(ArtiTriggerEvent::Running(hs))
+        tx.send(ArtiEvent::Running(hs))
             .map_err(|_| SystemError::ArtiReverseProxy)?;
 
         reverse_proxy

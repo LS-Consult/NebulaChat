@@ -5,7 +5,7 @@ use crate::app::panes::center::CenterPaneState;
 use crate::app::widgets::input::InputWidgetState;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyModifiers};
 use nebula_common::futures::{FutureExt, StreamExt};
-use nebula_common::net::arti::ArtiTriggerEvent;
+use nebula_common::net::arti::ArtiEvent;
 use nebula_common::tor_hsservice::RunningOnionService;
 use ratatui::prelude::*;
 use ratatui::widgets::BorderType::Rounded;
@@ -24,7 +24,7 @@ pub struct App {
     ct_event_stream: EventStream,
     center_pane_state: CenterPaneState,
 
-    arti_status_rx: Receiver<ArtiTriggerEvent>,
+    arti_status_rx: Receiver<ArtiEvent>,
     is_arti_started: bool,
     is_arti_failed: bool,
     arti_running_hs: Option<Arc<RunningOnionService>>,
@@ -38,7 +38,7 @@ pub enum InputMode {
 }
 
 impl App {
-    pub fn new(arti_status_rx: Receiver<ArtiTriggerEvent>) -> Self {
+    pub fn new(arti_status_rx: Receiver<ArtiEvent>) -> Self {
         let input_mode = InputMode::Normal;
 
         let center_pane_state = CenterPaneState {
@@ -75,13 +75,13 @@ impl App {
         if !self.is_arti_started && !self.is_arti_failed {
             match self.arti_status_rx.try_recv() {
                 Ok(event) => match event {
-                    ArtiTriggerEvent::Running(hs) => {
+                    ArtiEvent::Running(hs) => {
                         self.is_arti_started = true;
                         self.center_pane_state.node_address =
                             hs.onion_address().map(|a| a.to_string());
                         self.arti_running_hs = Some(hs);
                     }
-                    ArtiTriggerEvent::Failed => {
+                    ArtiEvent::Failed => {
                         self.is_arti_failed = true;
                     }
                 },

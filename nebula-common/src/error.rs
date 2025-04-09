@@ -5,7 +5,7 @@ pub enum NebulaError {
 
     #[error(transparent)]
     Config(#[from] ConfigError),
-    
+
     #[error(transparent)]
     Bonk(#[from] BonkError),
 }
@@ -17,9 +17,9 @@ pub enum SystemError {
 
     #[error(transparent)]
     Arti(#[from] arti_client::Error),
-    
+
     #[error("Failed to start reverse proxy")]
-    ArtiReverseProxy
+    ArtiReverseProxy,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -39,11 +39,17 @@ pub enum ConfigError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum BonkError {
+    #[error("No handshake was completed")]
+    HandshakeIncomplete,
+
     #[error("Malformed frame")]
     MalformedFrame,
-    
+
     #[error("Failed to write a data stream")]
-    WriterFailure
+    WriterFailure,
+
+    #[error(transparent)]
+    Serialization(#[from] ciborium::ser::Error<std::io::Error>),
 }
 
 pub type Result<T> = std::result::Result<T, NebulaError>;
